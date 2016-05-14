@@ -2,5 +2,14 @@
   "name": "purescript-react-redux",
   "version": "0.1.0",
   "private": true,
-  "files": []
+  "files": [],
+  "scripts": {
+    "psc:server": "psc-ide-server --port 4291 --debug",
+    "psc:watch": "pscid -p 4291",
+    "build": "pulp build --force"
+  },
+  "devDependencies": {
+    "pscid": "^1.7.3",
+    "purescript": "^0.8.5"
+  }
 }
