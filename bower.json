@@ -1,8 +1,22 @@
 {
   "name": "purescript-react-redux",
-  "private": true,
+  "description": "PureScript library for using Redux with React",
+  "keywords": [
+    "purescript",
+    "react",
+    "redux"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/ethul/purescript-react-redux.git"
+  },
   "ignore": [
     "*",
     "!src/**/*"
-  ]
+  ],
+  "dependencies": {
+    "purescript-profunctor-lenses": "~0.5.4",
+    "purescript-react": "~0.7.1"
+  }
 }
