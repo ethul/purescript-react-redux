@@ -29,7 +29,7 @@ import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Class (class MonadEff, liftEff)
 
 import Data.Either (Either, either)
-import Data.Function (Fn2, runFn2)
+import Data.Function.Uncurried (Fn2, runFn2)
 import Data.Lens (GetterP, LensP, PrismP, matching, set, view)
 
 import Unsafe.Coerce (unsafeCoerce)
