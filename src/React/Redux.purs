@@ -30,7 +30,7 @@ import Control.Monad.Eff.Class (class MonadEff, liftEff)
 
 import Data.Either (Either, either)
 import Data.Function.Uncurried (Fn2, runFn2)
-import Data.Lens (GetterP, LensP, PrismP, matching, set, view)
+import Data.Lens (Getter', Lens', Prism', matching, set, view)
 
 import Unsafe.Coerce (unsafeCoerce)
 
@@ -92,7 +92,7 @@ spec getInitialState render =
 spec' :: forall props eff f action. Render props Unit eff f action -> Spec props Unit eff f action
 spec' = spec (\_ _ -> pure unit)
 
-createClass :: forall props state eff f action state'. MonadEff (Effects eff) f => GetterP state' props -> Spec props state eff f action -> ReduxReactClass state' props
+createClass :: forall props state eff f action state'. MonadEff (Effects eff) f => Getter' state' props -> Spec props state eff f action -> ReduxReactClass state' props
 createClass lens spec_ = connect (view lens) reactClass
   where
   reactClass :: React.ReactClass props
@@ -122,7 +122,7 @@ createElement store reduxClass =
 createStore :: forall eff action state. Reducer action state -> state -> Eff (Effects eff) (Store action state)
 createStore = runFn2 createStore_
 
-reducerOptic :: forall state state' action action'. LensP state state' -> PrismP action action' -> Reducer action' state' -> Reducer action state
+reducerOptic :: forall state state' action action'. Lens' state state' -> Prism' action action' -> Reducer action' state' -> Reducer action state
 reducerOptic lens prism k action state = either (const state) (\a -> set lens (k a state') state) action'
   where
   state' :: state'

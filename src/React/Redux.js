@@ -1,7 +1,5 @@
 'use strict';
 
-// module React.Redux
-
 var Redux = require('redux');
 
 var ReactRedux = require('react-redux');
