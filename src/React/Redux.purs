@@ -8,6 +8,7 @@ module React.Redux
   , Store
   , createClass
   , createElement
+  , createElement'
   , createStore
   , createStore'
   , reducerOptic
@@ -124,6 +125,9 @@ createElement store reduxClass = React.createElement providerClass { store: stor
   where
   reduxEl :: React.ReactElement
   reduxEl = React.createElement (unsafeCoerce reduxClass) (unsafeCoerce unit) []
+
+createElement' :: forall props state'. ReduxReactClass state' props -> React.ReactElement
+createElement' reduxClass = React.createElement (unsafeCoerce reduxClass) (unsafeCoerce unit) []
 
 createStore :: forall eff action state. Reducer action state -> state -> Eff (Effects eff) (Store action state)
 createStore reducer state = createStore' reducer state id
