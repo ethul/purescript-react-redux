@@ -7,8 +7,8 @@ module React.Redux
   , Enhancer_
   , Store
   , createClass
+  , createProviderElement
   , createElement
-  , createElement'
   , createStore
   , createStore'
   , reducerOptic
@@ -120,14 +120,11 @@ createClass lens spec_ = connect (view lens) reactClass
     dispatch :: React.ReactThis props state -> f action -> f action
     dispatch this action = action >>= liftEff <<< runFn2 dispatch_ this
 
-createElement :: forall props action state'. Store action state' -> ReduxReactClass state' props -> React.ReactElement
-createElement store reduxClass = React.createElement providerClass { store: store } [ reduxEl ]
-  where
-  reduxEl :: React.ReactElement
-  reduxEl = React.createElement (unsafeCoerce reduxClass) (unsafeCoerce unit) []
+createProviderElement :: forall props action state'. Store action state' -> ReduxReactClass state' props -> React.ReactElement
+createProviderElement store reduxClass = React.createElement providerClass { store: store } [ createElement reduxClass ]
 
-createElement' :: forall props state'. ReduxReactClass state' props -> React.ReactElement
-createElement' reduxClass = React.createElement (unsafeCoerce reduxClass) (unsafeCoerce unit) []
+createElement :: forall props state'. ReduxReactClass state' props -> React.ReactElement
+createElement reduxClass = React.createElement (unsafeCoerce reduxClass) (unsafeCoerce unit) []
 
 createStore :: forall eff action state. Reducer action state -> state -> Eff (Effects eff) (Store action state)
 createStore reducer state = createStore' reducer state id
