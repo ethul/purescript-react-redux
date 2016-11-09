@@ -3,10 +3,13 @@ module React.Redux
   , Effects
   , REDUX
   , Reducer
+  , Enhancer
+  , Enhancer_
   , Store
   , createClass
   , createElement
   , createStore
+  , createStore'
   , reducerOptic
 
   , Spec
@@ -23,13 +26,13 @@ module React.Redux
   , spec'
   ) where
 
-import Prelude (Unit, (<<<), (>>=), const, pure, unit)
+import Prelude (Unit, (<<<), (>>=), const, pure, id, unit)
 
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Class (class MonadEff, liftEff)
 
 import Data.Either (Either, either)
-import Data.Function.Uncurried (Fn2, runFn2)
+import Data.Function.Uncurried (Fn2, Fn3, mkFn2, runFn2, runFn3)
 import Data.Lens (Getter', Lens', Prism', matching, set, view)
 
 import Unsafe.Coerce (unsafeCoerce)
@@ -37,6 +40,10 @@ import Unsafe.Coerce (unsafeCoerce)
 import React as React
 
 type Reducer action state = action -> state -> state
+
+type Enhancer eff action state = (Reducer action state -> state -> Eff (Effects eff) (Store action state)) -> (Reducer action state -> state -> Eff (Effects eff) (Store action state))
+
+type Enhancer_ eff action state = (Fn2 (Reducer action state) state (Eff (Effects eff) (Store action state))) -> (Fn2 (Reducer action state) state (Eff (Effects eff) (Store action state)))
 
 type Effects eff = (redux :: REDUX | eff)
 
@@ -113,14 +120,16 @@ createClass lens spec_ = connect (view lens) reactClass
     dispatch this action = action >>= liftEff <<< runFn2 dispatch_ this
 
 createElement :: forall props action state'. Store action state' -> ReduxReactClass state' props -> React.ReactElement
-createElement store reduxClass =
-  React.createElement providerClass { store: store } [ reduxEl ]
+createElement store reduxClass = React.createElement providerClass { store: store } [ reduxEl ]
   where
   reduxEl :: React.ReactElement
   reduxEl = React.createElement (unsafeCoerce reduxClass) (unsafeCoerce unit) []
 
 createStore :: forall eff action state. Reducer action state -> state -> Eff (Effects eff) (Store action state)
-createStore = runFn2 createStore_
+createStore reducer state = createStore' reducer state id
+
+createStore' :: forall eff action state. Reducer action state -> state -> Enhancer eff action state -> Eff (Effects eff) (Store action state)
+createStore' reducer state enhancer = runFn3 createStore_ reducer state (mkFn2 <<< enhancer <<< runFn2)
 
 reducerOptic :: forall state state' action action'. Lens' state state' -> Prism' action action' -> Reducer action' state' -> Reducer action state
 reducerOptic lens prism k action state = either (const state) (\a -> set lens (k a state') state) action'
@@ -143,4 +152,4 @@ foreign import dispatch_ :: forall eff props action state. Fn2 (React.ReactThis 
 
 foreign import providerClass :: forall action state'. React.ReactClass { store :: Store action state' }
 
-foreign import createStore_ :: forall eff action state. Fn2 (Reducer action state) state (Eff (Effects eff) (Store action state))
+foreign import createStore_ :: forall eff action state. Fn3 (Reducer action state) state (Enhancer_ eff action state) (Eff (Effects eff) (Store action state))

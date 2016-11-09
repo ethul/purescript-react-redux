@@ -4,14 +4,14 @@ var Redux = require('redux');
 
 var ReactRedux = require('react-redux');
 
-function createStore_(reducer, state) {
+function createStore_(reducer, state, enhancer) {
   return function(){
     function reducer_(state, action){
       var action_ = action.action;
       return action_ === undefined ? state : reducer(action_)(state);
     };
 
-    return Redux.createStore(reducer_, state);
+    return Redux.createStore(reducer_, state, enhancer);
   };
 }
 exports.createStore_ = createStore_;
