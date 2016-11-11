@@ -6,13 +6,6 @@ module React.Redux
   , Enhancer
   , Enhancer_
   , Store
-  , createClass
-  , createProviderElement
-  , createElement
-  , createStore
-  , createStore'
-  , reducerOptic
-
   , Spec
   , Render
   , GetInitialState
@@ -23,11 +16,17 @@ module React.Redux
   , ComponentWillUpdate
   , ComponentDidUpdate
   , ComponentWillUnmount
+  , createClass
+  , createProviderElement
+  , createElement
+  , createStore
+  , createStore'
+  , reducerOptic
   , spec
   , spec'
   ) where
 
-import Prelude (Unit, (<<<), (>>=), const, pure, id, unit)
+import Prelude (Unit, (<<<), (>>=), (<$), const, pure, id, unit)
 
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Class (class MonadEff, liftEff)
@@ -100,8 +99,8 @@ spec getInitialState render =
 spec' :: forall props eff f action. Render props Unit eff f action -> Spec props Unit eff f action
 spec' = spec (\_ _ -> pure unit)
 
-createClass :: forall props state eff f action state'. MonadEff (Effects eff) f => Getter' state' props -> Spec props state eff f action -> ReduxReactClass state' props
-createClass lens spec_ = connect (view lens) reactClass
+createClass :: forall props state eff f action action' state'. MonadEff (Effects eff) f => Getter' action' action -> Getter' state' props -> Spec props state eff f action' -> ReduxReactClass state' props
+createClass actionLens stateLens spec_ = connect (view stateLens) reactClass
   where
   reactClass :: React.ReactClass props
   reactClass =
@@ -117,8 +116,8 @@ createClass lens spec_ = connect (view lens) reactClass
                       , componentWillUnmount: \this -> spec_.componentWillUnmount (dispatch this) this
                       }
     where
-    dispatch :: React.ReactThis props state -> f action -> f action
-    dispatch this action = action >>= liftEff <<< runFn2 dispatch_ this
+    dispatch :: React.ReactThis props state -> f action' -> f action'
+    dispatch this action' = action' >>= \a -> a <$ liftEff (runFn2 dispatch_ this (view actionLens a))
 
 createProviderElement :: forall props action state'. Store action state' -> ReduxReactClass state' props -> React.ReactElement
 createProviderElement store reduxClass = React.createElement providerClass { store: store } [ createElement reduxClass ]
