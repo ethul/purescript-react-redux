@@ -4,9 +4,19 @@ var Redux = require('redux');
 
 var ReactRedux = require('react-redux');
 
+var actionType = '@@PURESCRIPT_REACT_REDUX';
+
+function startsWithActionType(actionForeign) {
+  var index = actionForeign.type.indexOf(actionType);
+
+  return index === 0;
+}
+
 function makeActionForeign(action) {
+  var constructorName = action.constructor && action.constructor.name ? action.constructor.name : 'UnknownConstructorName';
+
   var actionForeign = {
-    type: '@@purescript',
+    type: actionType + '/' + constructorName,
     action: action
   };
 
@@ -16,9 +26,7 @@ function makeActionForeign(action) {
 exports.createStore_ = function createStore_(reducer, state, enhancer){
   return function(){
     function reducerForeign(stateReducerForeign, actionForeign){
-      var action = actionForeign.action;
-
-      var result = action === undefined ? stateReducerForeign : reducer(action)(stateReducerForeign);
+      var result = startsWithActionType(actionForeign) ? reducer(actionForeign.action)(stateReducerForeign) : stateReducerForeign;
 
       return result;
     }
@@ -43,8 +51,16 @@ exports.createStore_ = function createStore_(reducer, state, enhancer){
   };
 };
 
-exports.connect = function connect(stateToProps){
-  return ReactRedux.connect(stateToProps);
+exports.connect_ = function connect_(Tuple, mapStateToProps, reactClass){
+  function mapStateToPropsForeign(state, props) {
+    var statePropsTuple = Tuple(state)(props);
+
+    var result = mapStateToProps(statePropsTuple);
+
+    return result;
+  }
+
+  return ReactRedux.connect(mapStateToPropsForeign)(reactClass);
 };
 
 exports.dispatch_ = function dispatch_(thisForeign, action){
