@@ -48,7 +48,7 @@ import Unsafe.Coerce (unsafeCoerce)
 
 import React as React
 
-type ReduxReactClass' state props = ReduxReactClass state Unit props
+type ReduxReactClass' state props action = ReduxReactClass state Unit props action
 
 type Reducer action state = action -> state -> state
 
@@ -112,10 +112,13 @@ spec getInitialState render =
 spec' :: forall props eff f action. Render props Unit eff f action -> Spec props Unit eff f action
 spec' = spec (\_ _ -> pure unit)
 
-createProviderElement :: forall action props state. Store action state -> ReduxReactClass' state props -> React.ReactElement
+createProviderElement :: forall action props state. Store action state -> ReduxReactClass' state props action -> React.ReactElement
 createProviderElement store reduxClass = React.createElement providerClass { store: store } [ createElement' reduxClass [] ]
 
-createClass :: forall eff f action props props' state state'. MonadEff (ReduxEffect eff) f => Getter' (Tuple state props) props' -> Spec props' state' eff f action -> ReduxReactClass state props props'
+createClass :: forall eff f action props props' state state'. MonadEff (ReduxEffect eff) f
+            => Getter' (Tuple state props) props'
+            -> Spec props' state' eff f action
+            -> ReduxReactClass state props props' action
 createClass slens spec_ = runFn3 connect_ Tuple (view slens) reactClass
   where
   reactClass :: React.ReactClass props'
@@ -135,19 +138,19 @@ createClass slens spec_ = runFn3 connect_ Tuple (view slens) reactClass
     dispatch :: React.ReactThis props' state' -> f action -> f action
     dispatch this action = action >>= liftEff <<< runFn2 dispatch_ this
 
-createClass' :: forall eff f action props state. MonadEff (ReduxEffect eff) f => Getter' state props -> Spec props Unit eff f action -> ReduxReactClass' state props
+createClass' :: forall eff f action props state. MonadEff (ReduxEffect eff) f => Getter' state props -> Spec props Unit eff f action -> ReduxReactClass' state props action
 createClass' slens spec_ = createClass slens' spec_
   where
   slens' :: Getter' (Tuple state Unit) props
   slens' = to (view slens <<< fst)
 
-createElement :: forall state props props'. ReduxReactClass state props props' -> props -> Array React.ReactElement -> React.ReactElement
+createElement :: forall state props props' action. ReduxReactClass state props props' action -> props -> Array React.ReactElement -> React.ReactElement
 createElement reduxClass = React.createElement reactClass
   where
   reactClass :: React.ReactClass props
   reactClass = unsafeCoerce reduxClass
 
-createElement' :: forall state props. ReduxReactClass' state props -> Array React.ReactElement -> React.ReactElement
+createElement' :: forall state props action. ReduxReactClass' state props action -> Array React.ReactElement -> React.ReactElement
 createElement' reduxClass = createElement reduxClass unit
 
 createStore :: forall eff action state. Reducer action state -> state -> Enhancer eff action state -> Eff (ReduxEffect eff) (Store action state)
@@ -169,9 +172,9 @@ foreign import data REDUX :: !
 
 foreign import data Store :: * -> * -> *
 
-foreign import data ReduxReactClass :: * -> * -> * -> *
+foreign import data ReduxReactClass :: * -> * -> * -> * -> *
 
-foreign import connect_ :: forall state props props'. Fn3 (state -> props -> Tuple state props) (Tuple state props -> props') (React.ReactClass props') (ReduxReactClass state props props')
+foreign import connect_ :: forall state props props' action. Fn3 (state -> props -> Tuple state props) (Tuple state props -> props') (React.ReactClass props') (ReduxReactClass state props props' action)
 
 foreign import dispatch_ :: forall eff action props state. Fn2 (React.ReactThis props state) action (Eff (ReduxEffect eff) action)
 
