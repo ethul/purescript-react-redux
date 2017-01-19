@@ -30,23 +30,20 @@ module React.Redux
   , reducerOptic
   , spec
   , spec'
+  , composeMiddleware
   , applyMiddleware
   , fromEnhancerForeign
   ) where
 
-import Prelude (Unit, (>>=), (<<<), const, pure, id, unit)
-
+import React as React
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Class (class MonadEff, liftEff)
-
 import Data.Either (Either, either)
 import Data.Function.Uncurried (Fn2, Fn3, runFn2, runFn3)
 import Data.Lens (Getter', Lens', Prism', matching, set, to, view)
 import Data.Tuple (Tuple(..), fst)
-
+import Prelude (Unit, const, id, pure, unit, (<<<), (>>=))
 import Unsafe.Coerce (unsafeCoerce)
-
-import React as React
 
 type ReduxReactClass' props state action = ReduxReactClass Unit props state action
 
@@ -58,9 +55,9 @@ type Enhancer eff action state = (Reducer action state -> state -> Eff (ReduxEff
 
 type EnhancerForeign action state = (Fn2 (ReducerForeign action state) state (Store action state)) -> (Fn2 (ReducerForeign action state) state (Store action state))
 
-type Middleware eff action state result = MiddlewareAPI eff action state result -> (action -> Eff (ReduxEffect eff) action) -> action -> Eff (ReduxEffect eff) result
+type Middleware eff storeAction state result action action' = MiddlewareAPI eff state result storeAction -> (action' -> Eff (ReduxEffect eff) result) -> action -> Eff (ReduxEffect eff) result
 
-type MiddlewareAPI eff action state result = { getState :: Eff (ReduxEffect eff) state, dispatch :: action -> Eff (ReduxEffect eff) result }
+type MiddlewareAPI eff state result action = { getState :: Eff (ReduxEffect eff) state, dispatch :: action -> Eff (ReduxEffect eff) result }
 
 type ReduxEffect eff = (redux :: REDUX | eff)
 
@@ -182,6 +179,8 @@ foreign import providerClass :: forall action state. React.ReactClass { store ::
 
 foreign import createStore_ :: forall eff action state. Fn3 (Reducer action state) state (Enhancer eff action state) (Eff (ReduxEffect eff) (Store action state))
 
-foreign import applyMiddleware :: forall eff action state result. Array (Middleware eff action state result) -> Enhancer eff action state
+foreign import composeMiddleware :: forall eff state result storeAction actionA actionB actionC. Middleware eff storeAction state result actionB actionC -> Middleware eff storeAction state result actionA actionB -> Middleware eff storeAction state result actionA actionC
+
+foreign import applyMiddleware :: forall eff state result action storeAction. Middleware eff storeAction state result action storeAction -> Enhancer eff storeAction state
 
 foreign import fromEnhancerForeign :: forall eff action state. EnhancerForeign action state -> Enhancer eff action state

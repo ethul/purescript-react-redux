@@ -73,8 +73,16 @@ exports.dispatch_ = function dispatch_(thisForeign, action){
   };
 };
 
-exports.applyMiddleware = function applyMiddleware(middlewares){
-  var middlewaresForeign = middlewares.map(function(middleware){
+exports.applyMiddleware = function applyMiddleware(middleware){
+  var middlewareEnhancerForeign = Redux.applyMiddleware.apply(Redux, [middleware]);
+
+  var result = exports.fromEnhancerForeign(middlewareEnhancerForeign);
+
+  return result;
+};
+
+exports.composeMiddleware = function composeMiddleware(middlewareA) {
+  return function(middlewareB) {
     return function(middlewareAPIForeign){
       return function(nextForeign){
         return function(actionForeign){
@@ -106,19 +114,13 @@ exports.applyMiddleware = function applyMiddleware(middlewares){
 
           var action = actionForeign.action;
 
-          var result = middleware(middlewareAPI)(next)(action)();
+          var result = middlewareB(middlewareAPI)(middlewareA(middlewareAPI)(next))(action)();
 
           return result;
         };
       };
-    }
-  });
-
-  var middlewareEnhancerForeign = Redux.applyMiddleware.apply(Redux, middlewaresForeign);
-
-  var result = exports.fromEnhancerForeign(middlewareEnhancerForeign);
-
-  return result;
+    };
+  };
 };
 
 exports.fromEnhancerForeign = function fromEnhancerForeign(enhancerForeign){
