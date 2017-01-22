@@ -73,8 +73,48 @@ exports.dispatch_ = function dispatch_(thisForeign, action){
   };
 };
 
+function wrapMiddleware (middleware) {
+  return function (middlewareAPIForeign) {
+    return function(nextForeign) {
+      return function(actionForeign) {
+        function getState(){
+          return middlewareAPIForeign.getState();
+        }
+
+        function dispatch(action){
+          return function(){
+            var actionForeignResult = makeActionForeign(action);
+
+            var result = middlewareAPIForeign.dispatch(actionForeignResult);
+
+            return result;
+          };
+        }
+
+        function next(action){
+          return function(){
+            var actionForeignResult = makeActionForeign(action);
+
+            var result = nextForeign(actionForeignResult);
+
+            return result;
+          };
+        }
+
+        var middlewareAPI = {getState: getState, dispatch: dispatch};
+
+        var action = actionForeign.action;
+
+        var result = middleware(middlewareAPI)(next)(action)();
+
+        return result;
+      };
+    };
+  };
+};
+
 exports.applyMiddleware = function applyMiddleware(middleware){
-  var middlewareEnhancerForeign = Redux.applyMiddleware.apply(Redux, [middleware]);
+  var middlewareEnhancerForeign = Redux.applyMiddleware.apply(Redux, [wrapMiddleware(middleware)]);
 
   var result = exports.fromEnhancerForeign(middlewareEnhancerForeign);
 
@@ -83,38 +123,12 @@ exports.applyMiddleware = function applyMiddleware(middleware){
 
 exports.composeMiddleware = function composeMiddleware(middlewareA) {
   return function(middlewareB) {
-    return function(middlewareAPIForeign){
-      return function(nextForeign){
-        return function(actionForeign){
-          function getState(){
-            return middlewareAPIForeign.getState();
-          }
-
-          function dispatch(action){
-            return function(){
-              var actionForeignResult = makeActionForeign(action);
-
-              var result = middlewareAPIForeign.dispatch(actionForeignResult);
-
-              return result;
-            };
-          }
-
-          function next(action){
-            return function(){
-              var actionForeignResult = makeActionForeign(action);
-
-              var result = nextForeign(actionForeignResult);
-
-              return result;
-            };
-          }
-
-          var middlewareAPI = {getState: getState, dispatch: dispatch};
-
-          var action = actionForeign.action;
-
-          var result = middlewareB(middlewareAPI)(middlewareA(middlewareAPI)(next))(action)();
+    return function(middlewareAPI) {
+      return function(next) {
+        return function(action) {
+          var nextB = middlewareB(middlewareAPI)(next);
+          var nextA = middlewareA(middlewareAPI)(nextB);
+          var result = nextA(action);
 
           return result;
         };
