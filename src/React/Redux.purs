@@ -30,6 +30,7 @@ module React.Redux
   , reducerOptic
   , spec
   , spec'
+  , composeMiddleware
   , applyMiddleware
   , fromEnhancerForeign
   ) where
@@ -48,7 +49,7 @@ import Unsafe.Coerce (unsafeCoerce)
 
 import React as React
 
-type ReduxReactClass' state props = ReduxReactClass state Unit props
+type ReduxReactClass' props state action = ReduxReactClass Unit props state action
 
 type Reducer action state = action -> state -> state
 
@@ -58,9 +59,9 @@ type Enhancer eff action state = (Reducer action state -> state -> Eff (ReduxEff
 
 type EnhancerForeign action state = (Fn2 (ReducerForeign action state) state (Store action state)) -> (Fn2 (ReducerForeign action state) state (Store action state))
 
-type Middleware eff action state result = MiddlewareAPI eff action state result -> (action -> Eff (ReduxEffect eff) action) -> action -> Eff (ReduxEffect eff) result
+type Middleware eff storeAction state result action action' = MiddlewareAPI eff state result storeAction -> (action' -> Eff (ReduxEffect eff) result) -> action -> Eff (ReduxEffect eff) result
 
-type MiddlewareAPI eff action state result = { getState :: Eff (ReduxEffect eff) state, dispatch :: action -> Eff (ReduxEffect eff) result }
+type MiddlewareAPI eff state result action = { getState :: Eff (ReduxEffect eff) state, dispatch :: action -> Eff (ReduxEffect eff) result }
 
 type ReduxEffect eff = (redux :: REDUX | eff)
 
@@ -112,10 +113,13 @@ spec getInitialState render =
 spec' :: forall props eff f action. Render props Unit eff f action -> Spec props Unit eff f action
 spec' = spec (\_ _ -> pure unit)
 
-createProviderElement :: forall action props state. Store action state -> ReduxReactClass' state props -> React.ReactElement
+createProviderElement :: forall props state action. Store action state -> ReduxReactClass' props state action -> React.ReactElement
 createProviderElement store reduxClass = React.createElement providerClass { store: store } [ createElement' reduxClass [] ]
 
-createClass :: forall eff f action props props' state state'. MonadEff (ReduxEffect eff) f => Getter' (Tuple state props) props' -> Spec props' state' eff f action -> ReduxReactClass state props props'
+createClass :: forall eff f props props' state state' action. MonadEff (ReduxEffect eff) f
+            => Getter' (Tuple state props) props'
+            -> Spec props' state' eff f action
+            -> ReduxReactClass props props' state action
 createClass slens spec_ = runFn3 connect_ Tuple (view slens) reactClass
   where
   reactClass :: React.ReactClass props'
@@ -135,25 +139,25 @@ createClass slens spec_ = runFn3 connect_ Tuple (view slens) reactClass
     dispatch :: React.ReactThis props' state' -> f action -> f action
     dispatch this action = action >>= liftEff <<< runFn2 dispatch_ this
 
-createClass' :: forall eff f action props state. MonadEff (ReduxEffect eff) f => Getter' state props -> Spec props Unit eff f action -> ReduxReactClass' state props
+createClass' :: forall eff f props state action. MonadEff (ReduxEffect eff) f => Getter' state props -> Spec props Unit eff f action -> ReduxReactClass' props state action
 createClass' slens spec_ = createClass slens' spec_
   where
   slens' :: Getter' (Tuple state Unit) props
   slens' = to (view slens <<< fst)
 
-createElement :: forall state props props'. ReduxReactClass state props props' -> props -> Array React.ReactElement -> React.ReactElement
+createElement :: forall props props' state action. ReduxReactClass props props' state action -> props -> Array React.ReactElement -> React.ReactElement
 createElement reduxClass = React.createElement reactClass
   where
   reactClass :: React.ReactClass props
   reactClass = unsafeCoerce reduxClass
 
-createElement' :: forall state props. ReduxReactClass' state props -> Array React.ReactElement -> React.ReactElement
+createElement' :: forall props state action. ReduxReactClass' props state action -> Array React.ReactElement -> React.ReactElement
 createElement' reduxClass = createElement reduxClass unit
 
-createStore :: forall eff action state. Reducer action state -> state -> Enhancer eff action state -> Eff (ReduxEffect eff) (Store action state)
+createStore :: forall eff state action. Reducer action state -> state -> Enhancer eff action state -> Eff (ReduxEffect eff) (Store action state)
 createStore = runFn3 createStore_
 
-createStore' :: forall eff action state. Reducer action state -> state -> Eff (ReduxEffect eff) (Store action state)
+createStore' :: forall eff state action. Reducer action state -> state -> Eff (ReduxEffect eff) (Store action state)
 createStore' reducer state = createStore reducer state id
 
 reducerOptic :: forall state state' action action'. Lens' state state' -> Prism' action action' -> Reducer action' state' -> Reducer action state
@@ -169,16 +173,18 @@ foreign import data REDUX :: !
 
 foreign import data Store :: * -> * -> *
 
-foreign import data ReduxReactClass :: * -> * -> * -> *
+foreign import data ReduxReactClass :: * -> * -> * -> * -> *
 
-foreign import connect_ :: forall state props props'. Fn3 (state -> props -> Tuple state props) (Tuple state props -> props') (React.ReactClass props') (ReduxReactClass state props props')
+foreign import connect_ :: forall props props' state action. Fn3 (state -> props -> Tuple state props) (Tuple state props -> props') (React.ReactClass props') (ReduxReactClass props props' state action)
 
-foreign import dispatch_ :: forall eff action props state. Fn2 (React.ReactThis props state) action (Eff (ReduxEffect eff) action)
+foreign import dispatch_ :: forall eff props state action. Fn2 (React.ReactThis props state) action (Eff (ReduxEffect eff) action)
 
-foreign import providerClass :: forall action state. React.ReactClass { store :: Store action state }
+foreign import providerClass :: forall state action. React.ReactClass { store :: Store action state }
 
-foreign import createStore_ :: forall eff action state. Fn3 (Reducer action state) state (Enhancer eff action state) (Eff (ReduxEffect eff) (Store action state))
+foreign import createStore_ :: forall eff state action. Fn3 (Reducer action state) state (Enhancer eff action state) (Eff (ReduxEffect eff) (Store action state))
 
-foreign import applyMiddleware :: forall eff action state result. Array (Middleware eff action state result) -> Enhancer eff action state
+foreign import composeMiddleware :: forall eff state result storeAction actionA actionB actionC. Middleware eff storeAction state result actionA actionB -> Middleware eff storeAction state result actionB actionC -> Middleware eff storeAction state result actionA actionC
+
+foreign import applyMiddleware :: forall eff state result action storeAction. Middleware eff storeAction state result action storeAction -> Enhancer eff storeAction state
 
 foreign import fromEnhancerForeign :: forall eff action state. EnhancerForeign action state -> Enhancer eff action state

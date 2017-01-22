@@ -73,52 +73,68 @@ exports.dispatch_ = function dispatch_(thisForeign, action){
   };
 };
 
-exports.applyMiddleware = function applyMiddleware(middlewares){
-  var middlewaresForeign = middlewares.map(function(middleware){
-    return function(middlewareAPIForeign){
-      return function(nextForeign){
-        return function(actionForeign){
-          function getState(){
-            return middlewareAPIForeign.getState();
-          }
+function wrapMiddleware (middleware) {
+  return function (middlewareAPIForeign) {
+    return function(nextForeign) {
+      return function(actionForeign) {
+        function getState(){
+          return middlewareAPIForeign.getState();
+        }
 
-          function dispatch(action){
-            return function(){
-              var actionForeignResult = makeActionForeign(action);
+        function dispatch(action){
+          return function(){
+            var actionForeignResult = makeActionForeign(action);
 
-              var result = middlewareAPIForeign.dispatch(actionForeignResult);
+            var result = middlewareAPIForeign.dispatch(actionForeignResult);
 
-              return result;
-            };
-          }
+            return result;
+          };
+        }
 
-          function next(action){
-            return function(){
-              var actionForeignResult = makeActionForeign(action);
+        function next(action){
+          return function(){
+            var actionForeignResult = makeActionForeign(action);
 
-              var result = nextForeign(actionForeignResult);
+            var result = nextForeign(actionForeignResult);
 
-              return result;
-            };
-          }
+            return result;
+          };
+        }
 
-          var middlewareAPI = {getState: getState, dispatch: dispatch};
+        var middlewareAPI = {getState: getState, dispatch: dispatch};
 
-          var action = actionForeign.action;
+        var action = actionForeign.action;
 
-          var result = middleware(middlewareAPI)(next)(action)();
+        var result = middleware(middlewareAPI)(next)(action)();
 
-          return result;
-        };
+        return result;
       };
-    }
-  });
+    };
+  };
+};
 
-  var middlewareEnhancerForeign = Redux.applyMiddleware.apply(Redux, middlewaresForeign);
+exports.applyMiddleware = function applyMiddleware(middleware){
+  var middlewareEnhancerForeign = Redux.applyMiddleware.apply(Redux, [wrapMiddleware(middleware)]);
 
   var result = exports.fromEnhancerForeign(middlewareEnhancerForeign);
 
   return result;
+};
+
+exports.composeMiddleware = function composeMiddleware(middlewareA) {
+  return function(middlewareB) {
+    return function(middlewareAPI) {
+      return function(next) {
+        return function(action) {
+          var nextB = middlewareB(middlewareAPI)(next);
+          var nextA = middlewareA(middlewareAPI)(nextB);
+          var result = nextA(action);
+
+          return result;
+        };
+      };
+    };
+  };
 };
 
 exports.fromEnhancerForeign = function fromEnhancerForeign(enhancerForeign){
