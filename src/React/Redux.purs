@@ -34,19 +34,15 @@ module React.Redux
   , fromEnhancerForeign
   ) where
 
-import Prelude (Unit, (>>=), (<<<), const, pure, id, unit)
-
-import Control.Monad.Eff (Eff)
+import React as React
+import Control.Monad.Eff (Eff, kind Effect)
 import Control.Monad.Eff.Class (class MonadEff, liftEff)
-
 import Data.Either (Either, either)
 import Data.Function.Uncurried (Fn2, Fn3, runFn2, runFn3)
 import Data.Lens (Getter', Lens', Prism', matching, set, to, view)
 import Data.Tuple (Tuple(..), fst)
-
+import Prelude (Unit, (>>=), (<<<), const, pure, id, unit)
 import Unsafe.Coerce (unsafeCoerce)
-
-import React as React
 
 type ReduxReactClass' state props = ReduxReactClass state Unit props
 
@@ -165,11 +161,11 @@ reducerOptic lens prism k action state = either (const state) (\a -> set lens (k
   action' :: Either action action'
   action' = matching prism action
 
-foreign import data REDUX :: !
+foreign import data REDUX :: Effect
 
-foreign import data Store :: * -> * -> *
+foreign import data Store :: Type -> Type -> Type
 
-foreign import data ReduxReactClass :: * -> * -> * -> *
+foreign import data ReduxReactClass :: Type -> Type -> Type -> Type
 
 foreign import connect_ :: forall state props props'. Fn3 (state -> props -> Tuple state props) (Tuple state props -> props') (React.ReactClass props') (ReduxReactClass state props props')
 
