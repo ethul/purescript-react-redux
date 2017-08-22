@@ -4,10 +4,8 @@ var Redux = require('redux');
 
 var ReactRedux = require('react-redux');
 
-var actionType = '@@PURESCRIPT_REACT_REDUX';
-
 function startsWithActionType(actionForeign) {
-  var index = actionForeign.type.indexOf(actionType);
+  var index = actionForeign.type.indexOf('@@PURESCRIPT_REACT_REDUX');
 
   return index === 0;
 }
@@ -16,7 +14,7 @@ function makeActionForeign(action) {
   var constructorName = action.constructor && action.constructor.name ? action.constructor.name : 'UnknownConstructorName';
 
   var actionForeign = {
-    type: actionType + '/' + constructorName,
+    type: '@@PURESCRIPT_REACT_REDUX/' + constructorName,
     action: action
   };
 
