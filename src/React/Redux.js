@@ -76,21 +76,24 @@ exports.dispatch_ = function dispatch_(thisForeign, action){
 exports.applyMiddleware = function applyMiddleware(middlewares){
   var middlewaresForeign = middlewares.map(function(middleware){
     return function(middlewareAPIForeign){
+      function getState(){
+        return middlewareAPIForeign.getState();
+      }
+
+      function dispatch(action){
+        return function(){
+          var actionForeignResult = makeActionForeign(action);
+
+          var result = middlewareAPIForeign.dispatch(actionForeignResult);
+
+          return result;
+        };
+      }
+
+      var cont = middleware({ getState: getState, dispatch: dispatch })
+
       return function(nextForeign){
         return function(actionForeign){
-          function getState(){
-            return middlewareAPIForeign.getState();
-          }
-
-          function dispatch(action){
-            return function(){
-              var actionForeignResult = makeActionForeign(action);
-
-              var result = middlewareAPIForeign.dispatch(actionForeignResult);
-
-              return result;
-            };
-          }
 
           function next(action){
             return function(){
@@ -102,11 +105,9 @@ exports.applyMiddleware = function applyMiddleware(middlewares){
             };
           }
 
-          var middlewareAPI = {getState: getState, dispatch: dispatch};
-
           var action = actionForeign.action;
 
-          var result = middleware(middlewareAPI)(next)(action)();
+          var result = cont(next)(action)();
 
           return result;
         };
