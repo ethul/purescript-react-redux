@@ -235,9 +235,9 @@ pinkie@^2.0.0:
   version "2.0.4"
   resolved "https://registry.yarnpkg.com/pinkie/-/pinkie-2.0.4.tgz#72556b80cfa0d48a974e80e77248e80ed4f7f870"
 
-pscid@^1.12.1:
-  version "1.12.1"
-  resolved "https://registry.yarnpkg.com/pscid/-/pscid-1.12.1.tgz#4cbef8def7401eade0e56f96baff03fc19823308"
+pscid@^2.0.2:
+  version "2.0.2"
+  resolved "https://registry.yarnpkg.com/pscid/-/pscid-2.0.2.tgz#22a8aee8b28dfbe408e36b09bd3dee3de6543fc6"
   dependencies:
     gaze "^1.1.2"
     glob "^7.1.1"
