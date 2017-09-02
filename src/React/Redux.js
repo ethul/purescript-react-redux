@@ -21,7 +21,7 @@ function makeActionForeign(action) {
   return actionForeign;
 }
 
-exports.createStore_ = function createStore_(reducer, state, enhancer){
+exports.createStoreFn = function createStoreFn(reducer, state, enhancer){
   return function(){
     function reducerForeign(stateReducerForeign, actionForeign){
       var result = startsWithActionType(actionForeign) ? reducer(actionForeign.action)(stateReducerForeign) : stateReducerForeign;
@@ -49,7 +49,7 @@ exports.createStore_ = function createStore_(reducer, state, enhancer){
   };
 };
 
-exports.connect_ = function connect_(Tuple, mapStateToProps, reactClass){
+exports.connectFn = function connectFn(Tuple, mapStateToProps, reactClass){
   function mapStateToPropsForeign(state, props) {
     var statePropsTuple = Tuple(state)(props);
 
@@ -61,7 +61,7 @@ exports.connect_ = function connect_(Tuple, mapStateToProps, reactClass){
   return ReactRedux.connect(mapStateToPropsForeign)(reactClass);
 };
 
-exports.dispatch_ = function dispatch_(thisForeign, action){
+exports.dispatchFn = function dispatchFn(thisForeign, action){
   return function(){
     var actionForeign = makeActionForeign(action);
 
