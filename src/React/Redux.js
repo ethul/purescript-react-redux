@@ -10,7 +10,7 @@ function startsWithActionType(actionForeign) {
   return index === 0;
 }
 
-function makeActionForeign(action) {
+exports.makeActionForeign = function makeActionForeign(action) {
   var constructorName = action.constructor && action.constructor.name ? action.constructor.name : 'UnknownConstructorName';
 
   var actionForeign = {
@@ -49,26 +49,8 @@ exports.createStoreFn = function createStoreFn(reducer, state, enhancer){
   };
 };
 
-exports.connectFn = function connectFn(Tuple, mapStateToProps, reactClass){
-  function mapStateToPropsForeign(state, props) {
-    var statePropsTuple = Tuple(state)(props);
-
-    var result = mapStateToProps(statePropsTuple);
-
-    return result;
-  }
-
-  return ReactRedux.connect(mapStateToPropsForeign)(reactClass);
-};
-
-exports.dispatchFn = function dispatchFn(thisForeign, action){
-  return function(){
-    var actionForeign = makeActionForeign(action);
-
-    var actionForeignResult = thisForeign.props.dispatch(actionForeign);
-
-    return actionForeignResult.action;
-  };
+exports.connectFn = function connectFn2(mapStateToProps, mapDispatchToProps, mergeProps){
+  return ReactRedux.connect(mapStateToProps, mapDispatchToProps, mergeProps);
 };
 
 exports.applyMiddleware = function applyMiddleware(middlewares){
