@@ -19,7 +19,7 @@ exports.makeActionForeign = function makeActionForeign(action) {
   };
 
   return actionForeign;
-}
+};
 
 exports.createStoreFn = function createStoreFn(reducer, state, enhancer){
   return function(){
@@ -62,7 +62,7 @@ exports.applyMiddleware = function applyMiddleware(middlewares){
 
       function dispatch(action){
         return function(){
-          var actionForeignResult = makeActionForeign(action);
+          var actionForeignResult = exports.makeActionForeign(action);
 
           var result = middlewareAPIForeign.dispatch(actionForeignResult);
 
@@ -77,7 +77,7 @@ exports.applyMiddleware = function applyMiddleware(middlewares){
 
           function next(action){
             return function(){
-              var actionForeignResult = makeActionForeign(action);
+              var actionForeignResult = exports.makeActionForeign(action);
 
               var result = nextForeign(actionForeignResult);
 
