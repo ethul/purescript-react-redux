@@ -99,7 +99,7 @@ _connectPropsDispatch = lens (\(ConnectProps _ dispatch _) -> dispatch) (\(Conne
 _connectPropsOwnProps :: forall eff action state ownProps. Lens' (ConnectProps eff action state ownProps) ownProps
 _connectPropsOwnProps = lens (\(ConnectProps _ _ ownProps) -> ownProps) (\(ConnectProps state dispatch _) ownProps -> ConnectProps state dispatch ownProps)
 
-connect :: forall eff action state ownProps props. Getter' (ConnectProps eff action state ownProps) props -> React.ReactClass ownProps -> ConnectClass state ownProps props
+connect :: forall eff action state ownProps props. Getter' (ConnectProps eff action state ownProps) props -> React.ReactClass props -> ConnectClass state ownProps props
 connect slens = runFn3 connectFn stateToProps dispatchToProps (mkFn3 mergeProps)
   where
   stateToProps :: state -> state
@@ -167,4 +167,4 @@ foreign import connectFn
    . Fn3 (state -> stateProps)
          (EffFn1 (ReduxEffect eff) (ActionForeign action) (ActionForeign action) -> dispatchProps)
          (Fn3 stateProps dispatchProps ownProps props)
-         (React.ReactClass ownProps -> ConnectClass state ownProps props)
+         (React.ReactClass props -> ConnectClass state ownProps props)
