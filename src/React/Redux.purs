@@ -1,7 +1,6 @@
 module React.Redux
   ( ConnectClass
   , ConnectClass'
-  , ConnectProps(..)
   , ReduxEffect
   , REDUX
   , Reducer
@@ -13,9 +12,6 @@ module React.Redux
   , MiddlewareAPI
   , Store
   , connect
-  , _connectPropsState
-  , _connectPropsDispatch
-  , _connectPropsOwnProps
   , createElement
   , createElement_
   , createProviderElement
@@ -31,10 +27,11 @@ import Prelude
 import Control.Monad.Eff.Uncurried (EffFn1, runEffFn1)
 
 import Data.Either (Either, either)
-import Data.Function.Uncurried (Fn2, Fn3, mkFn3, runFn3)
-import Data.Lens (Getter', Lens', Prism', (^.), lens, matching, set)
+import Data.Function.Uncurried (Fn2, Fn3, mkFn2, mkFn3, runFn3)
+import Data.Lens (Lens', Prism', matching, set, view)
 import Data.Monoid (class Monoid, mempty)
 import Data.Newtype (class Newtype, wrap, unwrap)
+import Data.Record.Class (class Subrow, unionMerge)
 
 import Control.Monad.Eff (Eff, kind Effect)
 
@@ -42,7 +39,7 @@ import React as React
 
 import Unsafe.Coerce (unsafeCoerce)
 
-type ConnectClass' state props = ConnectClass state Unit props
+type ConnectClass' state props = ConnectClass state () props
 
 type Reducer' action state = Reducer action state state
 
@@ -57,6 +54,8 @@ type Middleware eff action state result = MiddlewareAPI eff action state result 
 type MiddlewareAPI eff action state result = { getState :: Eff (ReduxEffect eff) state, dispatch :: action -> Eff (ReduxEffect eff) result }
 
 type ReduxEffect eff = (redux :: REDUX | eff)
+
+type ActionForeign action = { type :: String, action :: action }
 
 newtype Reducer action state state' = Reducer (action -> state -> state')
 
@@ -88,40 +87,36 @@ instance semigroupReducer :: Semigroup state' => Semigroup (Reducer action state
 instance monoidReducer :: Monoid state' => Monoid (Reducer action state state') where
   mempty = Reducer (const (const (mempty)))
 
-data ConnectProps eff action state ownProps = ConnectProps state (action -> Eff (ReduxEffect eff) action) ownProps
-
-_connectPropsState :: forall eff action state ownProps. Lens' (ConnectProps eff action state ownProps) state
-_connectPropsState = lens (\(ConnectProps state _ _) -> state) (\(ConnectProps _ dispatch ownProps) state -> ConnectProps state dispatch ownProps)
-
-_connectPropsDispatch :: forall eff action state ownProps. Lens' (ConnectProps eff action state ownProps) (action -> Eff (ReduxEffect eff) action)
-_connectPropsDispatch = lens (\(ConnectProps _ dispatch _) -> dispatch) (\(ConnectProps state _ ownProps) dispatch -> ConnectProps state dispatch ownProps)
-
-_connectPropsOwnProps :: forall eff action state ownProps. Lens' (ConnectProps eff action state ownProps) ownProps
-_connectPropsOwnProps = lens (\(ConnectProps _ _ ownProps) -> ownProps) (\(ConnectProps state dispatch _) ownProps -> ConnectProps state dispatch ownProps)
-
-connect :: forall eff action state ownProps props. Getter' (ConnectProps eff action state ownProps) props -> React.ReactClass props -> ConnectClass state ownProps props
-connect slens = runFn3 connectFn stateToProps dispatchToProps (mkFn3 mergeProps)
+connect
+  :: forall eff action state stateProps dispatchProps ownProps stateDispatchProps props
+   . Subrow stateProps state
+  => Subrow stateDispatchProps props
+  => Union stateProps dispatchProps stateDispatchProps
+  => Union stateDispatchProps ownProps props
+  => (Record state -> Record ownProps -> Record stateProps)
+  -> ((action -> Eff (ReduxEffect eff) action) -> Record ownProps -> Record dispatchProps)
+  -> React.ReactClass (Record props)
+  -> ConnectClass state ownProps props
+connect stateToProps dispatchToProps =
+  runFn3 connectFn (mkFn2 stateToProps) (mkFn2 dispatchToProps') (mkFn3 mergeProps)
   where
-  stateToProps :: state -> state
-  stateToProps = id
-
-  dispatchToProps :: EffFn1 (ReduxEffect eff) (ActionForeign action) (ActionForeign action) -> { dispatch :: action -> Eff (ReduxEffect eff) action }
-  dispatchToProps dispatchForeign = { dispatch }
+  dispatchToProps' :: EffFn1 (ReduxEffect eff) (ActionForeign action) (ActionForeign action) -> Record ownProps -> Record dispatchProps
+  dispatchToProps' dispatchForeign = dispatchToProps dispatch
     where
     dispatch :: action -> Eff (ReduxEffect eff) action
     dispatch action = _.action <$> runEffFn1 dispatchForeign (makeActionForeign action)
 
-  mergeProps :: state -> { dispatch :: action -> Eff (ReduxEffect eff) action } -> ownProps -> props
-  mergeProps stateProps dispatchProps ownProps = ConnectProps stateProps dispatchProps.dispatch ownProps ^. slens
+  mergeProps :: Record stateProps -> Record dispatchProps -> Record ownProps -> Record props
+  mergeProps stateProps dispatchProps ownProps = unionMerge ownProps (unionMerge dispatchProps stateProps)
 
-createElement :: forall state props props'. ConnectClass state props props' -> props -> Array React.ReactElement -> React.ReactElement
+createElement :: forall state ownProps props. ConnectClass state ownProps props -> Record ownProps -> Array React.ReactElement -> React.ReactElement
 createElement reduxClass = React.createElement reactClass
   where
-  reactClass :: React.ReactClass props
+  reactClass :: React.ReactClass (Record ownProps)
   reactClass = unsafeCoerce reduxClass
 
 createElement_ :: forall state props. ConnectClass' state props -> Array React.ReactElement -> React.ReactElement
-createElement_ reduxClass = createElement reduxClass unit
+createElement_ reduxClass = createElement reduxClass { }
 
 createProviderElement :: forall action state. Store action state -> Array React.ReactElement -> React.ReactElement
 createProviderElement store = React.createElement providerClass { store }
@@ -137,7 +132,7 @@ reducerOptic lens prism k =
   wrap $ \action state ->
     let
       state' :: state'
-      state' = state ^. lens
+      state' = view lens state
 
       action' :: Either action action'
       action' = matching prism action
@@ -148,7 +143,7 @@ foreign import data REDUX :: Effect
 
 foreign import data Store :: Type -> Type -> Type
 
-foreign import data ConnectClass :: Type -> Type -> Type -> Type
+foreign import data ConnectClass :: # Type -> # Type -> # Type -> Type
 
 foreign import providerClass :: forall action state. React.ReactClass { store :: Store action state }
 
@@ -158,13 +153,11 @@ foreign import applyMiddleware :: forall eff action state result. Array (Middlew
 
 foreign import fromEnhancerForeign :: forall eff action state. EnhancerForeign action state -> Enhancer eff action state
 
-type ActionForeign action = { type :: String, action :: action }
-
 foreign import makeActionForeign :: forall action. action -> ActionForeign action
 
 foreign import connectFn
   :: forall eff action state stateProps dispatchProps ownProps props
-   . Fn3 (state -> stateProps)
-         (EffFn1 (ReduxEffect eff) (ActionForeign action) (ActionForeign action) -> dispatchProps)
-         (Fn3 stateProps dispatchProps ownProps props)
-         (React.ReactClass props -> ConnectClass state ownProps props)
+   . Fn3 (Fn2 (Record state) (Record ownProps) (Record stateProps))
+         (Fn2 (EffFn1 (ReduxEffect eff) (ActionForeign action) (ActionForeign action)) (Record ownProps) (Record dispatchProps))
+         (Fn3 (Record stateProps) (Record dispatchProps) (Record ownProps) (Record props))
+         (React.ReactClass (Record props) -> ConnectClass state ownProps props)
