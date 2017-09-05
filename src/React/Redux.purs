@@ -26,6 +26,7 @@ module React.Redux
 
 import Prelude
 
+import Control.Monad.Eff (Eff, kind Effect)
 import Control.Monad.Eff.Uncurried (EffFn1, runEffFn1)
 
 import Data.Either (Either, either)
@@ -34,8 +35,6 @@ import Data.Lens (Lens', Prism', matching, set, view)
 import Data.Monoid (class Monoid, mempty)
 import Data.Newtype (class Newtype, wrap, unwrap)
 import Data.Record.Class (class Subrow, unionMerge)
-
-import Control.Monad.Eff (Eff, kind Effect)
 
 import React as React
 
