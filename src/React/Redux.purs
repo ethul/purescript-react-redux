@@ -1,6 +1,7 @@
 module React.Redux
   ( ConnectClass
   , ConnectClass'
+  , ConnectOptions
   , ReduxEffect
   , REDUX
   , Reducer
@@ -31,11 +32,13 @@ import Control.Monad.Eff (Eff, kind Effect)
 import Control.Monad.Eff.Uncurried (EffFn1, runEffFn1)
 
 import Data.Either (Either, either)
-import Data.Function.Uncurried (Fn2, Fn3, mkFn2, mkFn3, runFn3)
+import Data.Function.Uncurried (Fn2, Fn3, Fn4, mkFn2, mkFn3, runFn3, runFn4)
 import Data.Lens (Lens', Prism', matching, set, view)
+import Data.Maybe (Maybe(Nothing))
 import Data.Monoid (class Monoid, mempty)
 import Data.Newtype (class Newtype, wrap, unwrap)
-import Data.Record.Class (class Subrow, unionMerge)
+import Data.Record.Class (class Subrow, class RecordMerge, merge, unionMerge)
+import Data.Undefinable (Undefinable, toUndefinable)
 
 import React as React
 
@@ -93,32 +96,49 @@ instance semigroupReducer :: Semigroup state' => Semigroup (Reducer action state
 instance monoidReducer :: Monoid state' => Monoid (Reducer action state state') where
   mempty = Reducer (const (const (mempty)))
 
+type ConnectOptions state stateProps ownProps props
+  = ( pure :: Boolean
+    , areStatesEqual :: Fn2 (Record state) (Record state) Boolean
+    , areOwnPropsEqual :: Fn2 (Record ownProps) (Record ownProps) Boolean
+    , areStatePropsEqual :: Fn2 (Record stateProps) (Record stateProps) Boolean
+    , areMergedPropsEqual :: Fn2 (Record props) (Record props) Boolean
+    , storeKey :: String
+    )
+
 connect
-  :: forall eff action state stateProps dispatchProps ownProps stateDispatchProps props
+  :: forall eff action state stateProps dispatchProps ownProps stateDispatchProps props options
    . Subrow stateDispatchProps props
   => Union stateProps dispatchProps stateDispatchProps
   => Union stateDispatchProps ownProps props
+  => RecordMerge (ConnectOptions state stateProps ownProps props) options (ConnectOptions state stateProps ownProps props)
+  => Union options (ConnectOptions state stateProps ownProps props) (ConnectOptions state stateProps ownProps props)
   => (Record state -> Record ownProps -> Record stateProps)
   -> (Dispatch' eff action -> Record ownProps -> Record dispatchProps)
+  -> Record options
   -> React.ReactClass (Record props)
   -> ConnectClass (Record state) (Record ownProps) (Record props)
-connect stateToProps dispatchToProps =
-  runFn3 connectFn (mkFn2 stateToProps)
+connect stateToProps dispatchToProps options =
+  runFn4 connectFn (mkFn2 stateToProps)
                    (mkFn2 (dispatchToProps <<< dispatchForeignToDispatch))
                    (mkFn3 mergeProps)
+                   (merge defaultConnectOptions options)
 
 connect_
-  :: forall eff action state stateProps dispatchProps props
+  :: forall eff action state stateProps dispatchProps props options
    . Union stateProps dispatchProps props
   => Union props () props
+  => RecordMerge (ConnectOptions state stateProps () props) options (ConnectOptions state stateProps () props)
+  => Union options (ConnectOptions state stateProps () props) (ConnectOptions state stateProps () props)
   => (Record state -> Record stateProps)
   -> (Dispatch' eff action -> Record dispatchProps)
+  -> Record options
   -> React.ReactClass (Record props)
   -> ConnectClass' (Record state) (Record props)
-connect_ stateToProps dispatchToProps =
-  runFn3 connectFn_ stateToProps
+connect_ stateToProps dispatchToProps options =
+  runFn4 connectFn_ stateToProps
                     (dispatchToProps <<< dispatchForeignToDispatch)
                     (mkFn3 mergeProps)
+                    (merge defaultConnectOptions options)
 
 mergeProps
   :: forall stateProps dispatchProps ownProps stateDispatchProps props
@@ -133,6 +153,19 @@ mergeProps stateProps dispatchProps ownProps = unionMerge ownProps (unionMerge d
 
 dispatchForeignToDispatch :: forall eff action. EffFn1 (ReduxEffect eff) (ActionForeign action) (ActionForeign action) -> Dispatch' eff action
 dispatchForeignToDispatch dispatchForeign = map _.action <<< runEffFn1 dispatchForeign <<< makeActionForeign
+
+defaultConnectOptions :: forall state stateProps ownProps props. Record (ConnectOptions state stateProps ownProps props)
+defaultConnectOptions
+  = { pure: unsafeUnundefinable (toUndefinable Nothing)
+    , areStatesEqual: unsafeUnundefinable (toUndefinable Nothing)
+    , areOwnPropsEqual: unsafeUnundefinable (toUndefinable Nothing)
+    , areStatePropsEqual: unsafeUnundefinable (toUndefinable Nothing)
+    , areMergedPropsEqual: unsafeUnundefinable (toUndefinable Nothing)
+    , storeKey: unsafeUnundefinable (toUndefinable Nothing)
+    }
+  where
+  unsafeUnundefinable :: forall a. Undefinable a -> a
+  unsafeUnundefinable = unsafeCoerce
 
 createElement :: forall state ownProps props. ConnectClass (Record state) (Record ownProps) (Record props) -> Record ownProps -> Array React.ReactElement -> React.ReactElement
 createElement reduxClass = React.createElement reactClass
@@ -182,14 +215,16 @@ foreign import makeActionForeign :: forall action. action -> ActionForeign actio
 
 foreign import connectFn
   :: forall eff action state stateProps dispatchProps ownProps props
-   . Fn3 (Fn2 (Record state) (Record ownProps) (Record stateProps))
+   . Fn4 (Fn2 (Record state) (Record ownProps) (Record stateProps))
          (Fn2 (EffFn1 (ReduxEffect eff) (ActionForeign action) (ActionForeign action)) (Record ownProps) (Record dispatchProps))
          (Fn3 (Record stateProps) (Record dispatchProps) (Record ownProps) (Record props))
+         (Record (ConnectOptions state stateProps ownProps props))
          (React.ReactClass (Record props) -> ConnectClass (Record state) (Record ownProps) (Record props))
 
 foreign import connectFn_
   :: forall eff action state stateProps dispatchProps props
-   . Fn3 (Record state -> Record stateProps)
+   . Fn4 (Record state -> Record stateProps)
          (EffFn1 (ReduxEffect eff) (ActionForeign action) (ActionForeign action) -> Record dispatchProps)
          (Fn3 (Record stateProps) (Record dispatchProps) { } (Record props))
+         (Record (ConnectOptions state stateProps () props))
          (React.ReactClass (Record props) -> ConnectClass' (Record state) (Record props))

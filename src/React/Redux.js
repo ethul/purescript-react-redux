@@ -49,8 +49,8 @@ exports.createStoreFn = function createStoreFn(reducer, state, enhancer){
   };
 };
 
-exports.connectFn = function connectFn(mapStateToProps, mapDispatchToProps, mergeProps){
-  return ReactRedux.connect(mapStateToProps, mapDispatchToProps, mergeProps);
+exports.connectFn = function connectFn(mapStateToProps, mapDispatchToProps, mergeProps, options){
+  return ReactRedux.connect(mapStateToProps, mapDispatchToProps, mergeProps, options);
 };
 
 exports.connectFn_ = exports.connectFn;
