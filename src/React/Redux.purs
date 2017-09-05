@@ -6,6 +6,8 @@ module React.Redux
   , Reducer
   , Reducer'
   , ReducerForeign
+  , Dispatch
+  , Dispatch'
   , Enhancer
   , EnhancerForeign
   , Middleware
@@ -49,13 +51,17 @@ type Enhancer eff action state = (Reducer' action state -> state -> Eff (ReduxEf
 
 type EnhancerForeign action state = (Fn2 (ReducerForeign action state) state (Store action state)) -> (Fn2 (ReducerForeign action state) state (Store action state))
 
-type Middleware eff action state result = MiddlewareAPI eff action state result -> (action -> Eff (ReduxEffect eff) action) -> action -> Eff (ReduxEffect eff) result
+type Middleware eff action state result = MiddlewareAPI eff action state result -> Dispatch' eff action -> action -> Eff (ReduxEffect eff) result
 
-type MiddlewareAPI eff action state result = { getState :: Eff (ReduxEffect eff) state, dispatch :: action -> Eff (ReduxEffect eff) result }
+type MiddlewareAPI eff action state result = { getState :: Eff (ReduxEffect eff) state, dispatch :: Dispatch eff action result }
 
 type ReduxEffect eff = (redux :: REDUX | eff)
 
 type ActionForeign action = { type :: String, action :: action }
+
+type Dispatch eff action action' = action -> Eff (ReduxEffect eff) action'
+
+type Dispatch' eff action = Dispatch eff action action
 
 newtype Reducer action state state' = Reducer (action -> state -> state')
 
@@ -93,7 +99,7 @@ connect
   => Union stateProps dispatchProps stateDispatchProps
   => Union stateDispatchProps ownProps props
   => (Record state -> Record ownProps -> Record stateProps)
-  -> ((action -> Eff (ReduxEffect eff) action) -> Record ownProps -> Record dispatchProps)
+  -> (Dispatch' eff action -> Record ownProps -> Record dispatchProps)
   -> React.ReactClass (Record props)
   -> ConnectClass (Record state) (Record ownProps) (Record props)
 connect stateToProps dispatchToProps =
@@ -102,7 +108,7 @@ connect stateToProps dispatchToProps =
   dispatchToProps' :: EffFn1 (ReduxEffect eff) (ActionForeign action) (ActionForeign action) -> Record ownProps -> Record dispatchProps
   dispatchToProps' dispatchForeign = dispatchToProps dispatch
     where
-    dispatch :: action -> Eff (ReduxEffect eff) action
+    dispatch :: Dispatch' eff action
     dispatch action = _.action <$> runEffFn1 dispatchForeign (makeActionForeign action)
 
   mergeProps :: Record stateProps -> Record dispatchProps -> Record ownProps -> Record props
