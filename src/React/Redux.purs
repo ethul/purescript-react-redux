@@ -39,7 +39,7 @@ import React as React
 
 import Unsafe.Coerce (unsafeCoerce)
 
-type ConnectClass' state props = ConnectClass state () props
+type ConnectClass' state props = ConnectClass state (Record ()) props
 
 type Reducer' action state = Reducer action state state
 
@@ -89,14 +89,13 @@ instance monoidReducer :: Monoid state' => Monoid (Reducer action state state') 
 
 connect
   :: forall eff action state stateProps dispatchProps ownProps stateDispatchProps props
-   . Subrow stateProps state
-  => Subrow stateDispatchProps props
+   . Subrow stateDispatchProps props
   => Union stateProps dispatchProps stateDispatchProps
   => Union stateDispatchProps ownProps props
   => (Record state -> Record ownProps -> Record stateProps)
   -> ((action -> Eff (ReduxEffect eff) action) -> Record ownProps -> Record dispatchProps)
   -> React.ReactClass (Record props)
-  -> ConnectClass state ownProps props
+  -> ConnectClass (Record state) (Record ownProps) (Record props)
 connect stateToProps dispatchToProps =
   runFn3 connectFn (mkFn2 stateToProps) (mkFn2 dispatchToProps') (mkFn3 mergeProps)
   where
@@ -109,13 +108,13 @@ connect stateToProps dispatchToProps =
   mergeProps :: Record stateProps -> Record dispatchProps -> Record ownProps -> Record props
   mergeProps stateProps dispatchProps ownProps = unionMerge ownProps (unionMerge dispatchProps stateProps)
 
-createElement :: forall state ownProps props. ConnectClass state ownProps props -> Record ownProps -> Array React.ReactElement -> React.ReactElement
+createElement :: forall state ownProps props. ConnectClass (Record state) (Record ownProps) (Record props) -> Record ownProps -> Array React.ReactElement -> React.ReactElement
 createElement reduxClass = React.createElement reactClass
   where
   reactClass :: React.ReactClass (Record ownProps)
   reactClass = unsafeCoerce reduxClass
 
-createElement_ :: forall state props. ConnectClass' state props -> Array React.ReactElement -> React.ReactElement
+createElement_ :: forall state props. ConnectClass' (Record state) (Record props) -> Array React.ReactElement -> React.ReactElement
 createElement_ reduxClass = createElement reduxClass { }
 
 createProviderElement :: forall action state. Store action state -> Array React.ReactElement -> React.ReactElement
@@ -143,7 +142,7 @@ foreign import data REDUX :: Effect
 
 foreign import data Store :: Type -> Type -> Type
 
-foreign import data ConnectClass :: # Type -> # Type -> # Type -> Type
+foreign import data ConnectClass :: Type -> Type -> Type -> Type
 
 foreign import providerClass :: forall action state. React.ReactClass { store :: Store action state }
 
@@ -160,4 +159,4 @@ foreign import connectFn
    . Fn3 (Fn2 (Record state) (Record ownProps) (Record stateProps))
          (Fn2 (EffFn1 (ReduxEffect eff) (ActionForeign action) (ActionForeign action)) (Record ownProps) (Record dispatchProps))
          (Fn3 (Record stateProps) (Record dispatchProps) (Record ownProps) (Record props))
-         (React.ReactClass (Record props) -> ConnectClass state ownProps props)
+         (React.ReactClass (Record props) -> ConnectClass (Record state) (Record ownProps) (Record props))
