@@ -40,7 +40,7 @@ import React as React
 
 import Unsafe.Coerce (unsafeCoerce)
 
-type ConnectClass' state props = ConnectClass state (Record ()) props
+type ConnectClass' state props = ConnectClass state { } props
 
 type Reducer' action state = Reducer action state state
 
