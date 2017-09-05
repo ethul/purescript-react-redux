@@ -14,6 +14,7 @@ module React.Redux
   , MiddlewareAPI
   , Store
   , connect
+  , connect_
   , createElement
   , createElement_
   , createProviderElement
@@ -102,16 +103,36 @@ connect
   -> React.ReactClass (Record props)
   -> ConnectClass (Record state) (Record ownProps) (Record props)
 connect stateToProps dispatchToProps =
-  runFn3 connectFn (mkFn2 stateToProps) (mkFn2 dispatchToProps') (mkFn3 mergeProps)
-  where
-  dispatchToProps' :: EffFn1 (ReduxEffect eff) (ActionForeign action) (ActionForeign action) -> Record ownProps -> Record dispatchProps
-  dispatchToProps' dispatchForeign = dispatchToProps dispatch
-    where
-    dispatch :: Dispatch' eff action
-    dispatch action = _.action <$> runEffFn1 dispatchForeign (makeActionForeign action)
+  runFn3 connectFn (mkFn2 stateToProps)
+                   (mkFn2 (dispatchToProps <<< dispatchForeignToDispatch))
+                   (mkFn3 mergeProps)
 
-  mergeProps :: Record stateProps -> Record dispatchProps -> Record ownProps -> Record props
-  mergeProps stateProps dispatchProps ownProps = unionMerge ownProps (unionMerge dispatchProps stateProps)
+connect_
+  :: forall eff action state stateProps dispatchProps props
+   . Union stateProps dispatchProps props
+  => Union props () props
+  => (Record state -> Record stateProps)
+  -> (Dispatch' eff action -> Record dispatchProps)
+  -> React.ReactClass (Record props)
+  -> ConnectClass' (Record state) (Record props)
+connect_ stateToProps dispatchToProps =
+  runFn3 connectFn_ stateToProps
+                    (dispatchToProps <<< dispatchForeignToDispatch)
+                    (mkFn3 mergeProps)
+
+mergeProps
+  :: forall stateProps dispatchProps ownProps stateDispatchProps props
+   . Subrow stateDispatchProps props
+  => Union stateProps dispatchProps stateDispatchProps
+  => Union stateDispatchProps ownProps props
+  => Record stateProps
+  -> Record dispatchProps
+  -> Record ownProps
+  -> Record props
+mergeProps stateProps dispatchProps ownProps = unionMerge ownProps (unionMerge dispatchProps stateProps)
+
+dispatchForeignToDispatch :: forall eff action. EffFn1 (ReduxEffect eff) (ActionForeign action) (ActionForeign action) -> Dispatch' eff action
+dispatchForeignToDispatch dispatchForeign = map _.action <<< runEffFn1 dispatchForeign <<< makeActionForeign
 
 createElement :: forall state ownProps props. ConnectClass (Record state) (Record ownProps) (Record props) -> Record ownProps -> Array React.ReactElement -> React.ReactElement
 createElement reduxClass = React.createElement reactClass
@@ -165,3 +186,10 @@ foreign import connectFn
          (Fn2 (EffFn1 (ReduxEffect eff) (ActionForeign action) (ActionForeign action)) (Record ownProps) (Record dispatchProps))
          (Fn3 (Record stateProps) (Record dispatchProps) (Record ownProps) (Record props))
          (React.ReactClass (Record props) -> ConnectClass (Record state) (Record ownProps) (Record props))
+
+foreign import connectFn_
+  :: forall eff action state stateProps dispatchProps props
+   . Fn3 (Record state -> Record stateProps)
+         (EffFn1 (ReduxEffect eff) (ActionForeign action) (ActionForeign action) -> Record dispatchProps)
+         (Fn3 (Record stateProps) (Record dispatchProps) { } (Record props))
+         (React.ReactClass (Record props) -> ConnectClass' (Record state) (Record props))

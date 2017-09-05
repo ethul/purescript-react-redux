@@ -49,9 +49,11 @@ exports.createStoreFn = function createStoreFn(reducer, state, enhancer){
   };
 };
 
-exports.connectFn = function connectFn2(mapStateToProps, mapDispatchToProps, mergeProps){
+exports.connectFn = function connectFn(mapStateToProps, mapDispatchToProps, mergeProps){
   return ReactRedux.connect(mapStateToProps, mapDispatchToProps, mergeProps);
 };
+
+exports.connectFn_ = exports.connectFn;
 
 exports.applyMiddleware = function applyMiddleware(middlewares){
   var middlewaresForeign = middlewares.map(function(middleware){
