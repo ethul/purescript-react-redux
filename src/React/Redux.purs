@@ -21,7 +21,6 @@ module React.Redux
   , createProviderElement
   , createStore
   , createStore'
-  , reducerOptic
   , applyMiddleware
   , fromEnhancerForeign
   ) where
@@ -31,11 +30,9 @@ import Prelude
 import Control.Monad.Eff (Eff, kind Effect)
 import Control.Monad.Eff.Uncurried (EffFn1, runEffFn1)
 
-import Data.Either (Either, either)
 import Data.Function.Uncurried (Fn2, Fn3, Fn4, mkFn2, mkFn3, runFn3, runFn4)
-import Data.Lens (Lens', Prism', matching, set, view)
 import Data.Monoid (class Monoid, mempty)
-import Data.Newtype (class Newtype, wrap, unwrap)
+import Data.Newtype (class Newtype, unwrap)
 import Data.Record.Class (class Subrow, unionMerge)
 
 import React as React
@@ -167,18 +164,6 @@ createStore = runFn3 createStoreFn
 
 createStore' :: forall eff action state. Reducer' action state -> state -> Eff (ReduxEffect eff) (Store action state)
 createStore' reducer state = createStore reducer state id
-
-reducerOptic :: forall state state' action action'. Lens' state state' -> Prism' action action' -> Reducer' action' state' -> Reducer' action state
-reducerOptic lens prism k =
-  wrap $ \action state ->
-    let
-      state' :: state'
-      state' = view lens state
-
-      action' :: Either action action'
-      action' = matching prism action
-
-    in either (const state) (\a -> set lens (unwrap k a state') state) action'
 
 foreign import data REDUX :: Effect
 
