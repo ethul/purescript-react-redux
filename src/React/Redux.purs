@@ -111,7 +111,6 @@ connect
   => Union stateProps dispatchProps stateDispatchProps
   => Union stateDispatchProps ownProps props
   => RecordMerge (ConnectOptions state stateProps ownProps props) options (ConnectOptions state stateProps ownProps props)
-  => Union options (ConnectOptions state stateProps ownProps props) (ConnectOptions state stateProps ownProps props)
   => (Record state -> Record ownProps -> Record stateProps)
   -> (Dispatch' eff action -> Record ownProps -> Record dispatchProps)
   -> Record options
@@ -121,14 +120,13 @@ connect stateToProps dispatchToProps options =
   runFn4 connectFn (mkFn2 stateToProps)
                    (mkFn2 (dispatchToProps <<< dispatchForeignToDispatch))
                    (mkFn3 mergeProps)
-                   (merge defaultConnectOptions options)
+                   (mergeConnectOptions defaultConnectOptions options)
 
 connect_
   :: forall eff action state stateProps dispatchProps props options
    . Union stateProps dispatchProps props
   => Union props () props
   => RecordMerge (ConnectOptions state stateProps () props) options (ConnectOptions state stateProps () props)
-  => Union options (ConnectOptions state stateProps () props) (ConnectOptions state stateProps () props)
   => (Record state -> Record stateProps)
   -> (Dispatch' eff action -> Record dispatchProps)
   -> Record options
@@ -138,7 +136,7 @@ connect_ stateToProps dispatchToProps options =
   runFn4 connectFn_ stateToProps
                     (dispatchToProps <<< dispatchForeignToDispatch)
                     (mkFn3 mergeProps)
-                    (merge defaultConnectOptions options)
+                    (mergeConnectOptions defaultConnectOptions options)
 
 mergeProps
   :: forall stateProps dispatchProps ownProps stateDispatchProps props
@@ -166,6 +164,14 @@ defaultConnectOptions
   where
   unsafeUnundefinable :: forall a. Undefinable a -> a
   unsafeUnundefinable = unsafeCoerce
+
+mergeConnectOptions
+  :: forall state stateProps ownProps props options
+   . RecordMerge (ConnectOptions state stateProps ownProps props) options (ConnectOptions state stateProps ownProps props)
+  => Record (ConnectOptions state stateProps ownProps props)
+  -> Record options
+  -> Record (ConnectOptions state stateProps ownProps props)
+mergeConnectOptions = merge
 
 createElement :: forall state ownProps props. ConnectClass (Record state) (Record ownProps) (Record props) -> Record ownProps -> Array React.ReactElement -> React.ReactElement
 createElement reduxClass = React.createElement reactClass
