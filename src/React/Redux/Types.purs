@@ -1,5 +1,7 @@
 module React.Redux.Types where
 
+import Prelude
+
 import Control.Monad.Eff (kind Effect, Eff)
 
 import React.Redux.Reducer as Reducer
@@ -18,8 +20,8 @@ type Dispatch eff action result = action -> Eff (ReduxEffect eff) result
 type Store eff state action
   = { dispatch :: BaseDispatch eff action
     , getState :: Eff (ReduxEffect eff) state
---    , subscribe: (listener: () => void) => () => void
---    , replaceReducer: (reducer: Reducer) => void
+    , subscribe :: Eff (ReduxEffect eff) Unit -> Eff (ReduxEffect eff) Unit
+    , replaceReducer :: Reducer action state -> Eff (ReduxEffect eff) Unit
     }
 
 type StoreCreator eff state action = Reducer action state -> state -> Eff (ReduxEffect eff) (Store eff state action)

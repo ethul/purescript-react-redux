@@ -52,8 +52,8 @@ type ReduxMiddleware eff state action a b = ReduxMiddlewareAPI eff state action 
 type ReduxStore eff state action
   = { dispatch :: ReduxBaseDispatch eff action
     , getState :: Eff (ReduxEffect eff) state
---    , subscribe: (listener: () => void) => () => void
---    , replaceReducer: (reducer: Reducer) => void
+    , subscribe :: Eff (ReduxEffect eff) Unit -> Eff (ReduxEffect eff) Unit
+    , replaceReducer :: EffFn1 (ReduxEffect eff) (ReduxReducer state action) Unit
     }
 
 type ReduxStoreCreator eff state action = EffFn2 (ReduxEffect eff) (ReduxReducer state action) state (ReduxStore eff state action)
@@ -124,12 +124,16 @@ reduxStoreToStore :: forall eff state action. ReduxStore eff state action -> Sto
 reduxStoreToStore reduxStore =
   { dispatch: reduxBaseDispatchToBaseDispatch reduxStore.dispatch
   , getState: reduxStore.getState
+  , subscribe: reduxStore.subscribe
+  , replaceReducer: runEffFn1 reduxStore.replaceReducer <<< reducerToReduxReducer
   }
 
 storeToReduxStore :: forall eff state action. Store eff state action -> ReduxStore eff state action
 storeToReduxStore store =
   { dispatch: baseDispatchToReduxBaseDispatch store.dispatch
   , getState: store.getState
+  , subscribe: store.subscribe
+  , replaceReducer: mkEffFn1 (store.replaceReducer <<< reduxReducerToReducer)
   }
 
 reduxStoreCreatorToStoreCreator :: forall eff state action. ReduxStoreCreator eff state action -> StoreCreator eff state action
