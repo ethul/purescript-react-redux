@@ -19,8 +19,6 @@ import Control.Monad.Eff (Eff, kind Effect)
 import Control.Monad.Eff.Uncurried (EffFn3, runEffFn3)
 
 import Data.Function.Uncurried (Fn2, Fn3, Fn4, mkFn2, mkFn3, runFn4)
-import Data.Maybe (maybe)
-import Data.Newtype (unwrap)
 import Data.Record.Class (class Subrow, unionMerge)
 
 import Unsafe.Coerce (unsafeCoerce)
@@ -28,15 +26,22 @@ import Unsafe.Coerce (unsafeCoerce)
 import React as React
 import React.Redux.Internal as Internal
 import React.Redux.Middleware (Middleware, MiddlewareAPI) as Redux
-
 import React.Redux.Types
   ( REDUX
   , ReduxEffect
+  , Reducer
   , BaseDispatch
   , Dispatch
-  , Reducer
-  , Store
-  , StoreEnhancer
+  , ReduxAction
+  , ReduxAction'
+  , ReduxReducer
+  , ReduxBaseDispatch
+  , ReduxDispatch
+  , ReduxMiddlewareAPI
+  , ReduxMiddleware
+  , ReduxStoreCreator
+  , ReduxStoreEnhancer
+  , ReduxStore
   ) as Redux
 
 -- | Connected class representation parameterized by state, ownProps, props, and action.
@@ -44,21 +49,22 @@ foreign import data ConnectClass :: Type -> Type -> Type -> Type -> Type
 
 type ConnectClass' state props action = ConnectClass state { } props action
 
-type ConnectOptions state stateProps ownProps props
+type ConnectOptions state stateProps ownProps props options
   = ( pure :: Boolean
     , areStatesEqual :: Fn2 (Record state) (Record state) Boolean
     , areOwnPropsEqual :: Fn2 (Record ownProps) (Record ownProps) Boolean
     , areStatePropsEqual :: Fn2 (Record stateProps) (Record stateProps) Boolean
     , areMergedPropsEqual :: Fn2 (Record props) (Record props) Boolean
     , storeKey :: String
+    | options
     )
 
 connect
-  :: forall eff state action stateProps dispatchProps ownProps stateDispatchProps props options
+  :: forall eff state action stateProps dispatchProps ownProps stateDispatchProps props options options'
    . Subrow stateDispatchProps props
   => Union stateProps dispatchProps stateDispatchProps
   => Union stateDispatchProps ownProps props
-  => Subrow options (ConnectOptions state stateProps ownProps props)
+  => Subrow options (ConnectOptions state stateProps ownProps props options')
   => (Record state -> Record ownProps -> Record stateProps)
   -> (Redux.BaseDispatch eff action -> Record ownProps -> Record dispatchProps)
   -> Record options
@@ -72,10 +78,10 @@ connect stateToProps dispatchToProps options =
     options
 
 connect_
-  :: forall eff state action stateProps dispatchProps props options
+  :: forall eff state action stateProps dispatchProps props options options'
    . Union stateProps dispatchProps props
   => Union props () props
-  => Subrow options (ConnectOptions state stateProps () props)
+  => Subrow options (ConnectOptions state stateProps () props options')
   => (Record state -> Record stateProps)
   -> (Redux.BaseDispatch eff action -> Record dispatchProps)
   -> Record options
@@ -120,7 +126,7 @@ createElement_ reduxClass = createElement reduxClass { }
 
 createProviderElement
   :: forall eff state action
-   . Redux.Store eff state action
+   . Redux.ReduxStore eff state action
   -> Array React.ReactElement
   -> React.ReactElement
 createProviderElement store = React.createElement reduxProviderClass { store }
@@ -128,48 +134,41 @@ createProviderElement store = React.createElement reduxProviderClass { store }
 applyMiddleware
   :: forall eff state action result
    . Array (Redux.Middleware eff state action action result)
-  -> Redux.StoreEnhancer eff state action
-applyMiddleware = Internal.reduxStoreEnhancerToStoreEnhancer <<< reduxApplyMiddleware <<< map Internal.middlewareToReduxMiddleware
+  -> Redux.ReduxStoreEnhancer eff state action
+applyMiddleware = reduxApplyMiddleware <<< map Internal.middlewareToReduxMiddleware
 
 createStore
   :: forall eff state action
    . Redux.Reducer action state
   -> state
-  -> Redux.StoreEnhancer eff state action
-  -> Eff (Redux.ReduxEffect eff) (Redux.Store eff state action)
-createStore reducer state enhancer =
-  runEffFn3 reduxCreateStore
-    reduxReducer
-    state
-    (Internal.storeEnhancerToReduxStoreEnhancer enhancer)
-  where
-  reduxReducer :: Internal.ReduxReducer state action
-  reduxReducer = mkFn2 ((>>>) (maybe id (unwrap reducer) <<< Internal.reduxActionToMaybeAction) <<< (#))
+  -> Redux.ReduxStoreEnhancer eff state action
+  -> Eff (Redux.ReduxEffect eff) (Redux.ReduxStore eff state action)
+createStore reducer = runEffFn3 reduxCreateStore (Internal.reducerToReduxReducer reducer)
 
 createStore'
   :: forall eff state action
    . Redux.Reducer action state
   -> state
-  -> Eff (Redux.ReduxEffect eff) (Redux.Store eff state action)
+  -> Eff (Redux.ReduxEffect eff) (Redux.ReduxStore eff state action)
 createStore' reducer state = createStore reducer state id
 
 foreign import reduxApplyMiddleware
   :: forall eff state action a b
-   . Array (Internal.ReduxMiddleware eff state action a b)
-  -> Internal.ReduxStoreEnhancer eff state action
+   . Array (Redux.ReduxMiddleware eff state action a b)
+  -> Redux.ReduxStoreEnhancer eff state action
 
 foreign import reduxCreateStore
   :: forall eff state action
    . EffFn3 (Redux.ReduxEffect eff)
-            (Internal.ReduxReducer state action)
+            (Redux.ReduxReducer state action)
             state
-            (Internal.ReduxStoreEnhancer eff state action)
-            (Redux.Store eff state action)
+            (Redux.ReduxStoreEnhancer eff state action)
+            (Redux.ReduxStore eff state action)
 
 -- | Foreign Redux Provider component class.
 foreign import reduxProviderClass
   :: forall eff state action
-   . React.ReactClass { store :: Redux.Store eff state action }
+   . React.ReactClass { store :: Redux.ReduxStore eff state action }
 
 -- | Foreign Redux connect function that depends on `ownProps`.
 -- |
@@ -178,7 +177,7 @@ foreign import reduxProviderClass
 foreign import reduxConnect
   :: forall eff state action stateProps dispatchProps ownProps props options
    . Fn4 (Fn2 (Record state) (Record ownProps) (Record stateProps))
-         (Fn2 (Internal.ReduxDispatch eff action action) (Record ownProps) (Record dispatchProps))
+         (Fn2 (Redux.ReduxDispatch eff action action) (Record ownProps) (Record dispatchProps))
          (Fn3 (Record stateProps) (Record dispatchProps) (Record ownProps) (Record props))
          (Record options)
          (React.ReactClass (Record props) -> ConnectClass (Record state) (Record ownProps) (Record props) action)
@@ -187,7 +186,7 @@ foreign import reduxConnect
 foreign import reduxConnect_
   :: forall eff state action stateProps dispatchProps props options
    . Fn4 (Record state -> Record stateProps)
-         (Internal.ReduxDispatch eff action action -> Record dispatchProps)
+         (Redux.ReduxDispatch eff action action -> Record dispatchProps)
          (Fn3 (Record stateProps) (Record dispatchProps) { } (Record props))
          (Record options)
          (React.ReactClass (Record props) -> ConnectClass' (Record state) (Record props) action)

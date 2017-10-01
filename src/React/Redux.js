@@ -9,7 +9,7 @@ exports.reduxCreateStore = function reduxCreateStore(reducer, state, enhancer){
 };
 
 exports.reduxApplyMiddleware = function reduxApplyMiddleware(middleware){
-  return Redux.applyMiddleware(middleware);
+  return Redux.applyMiddleware.apply(Redux, middleware);
 };
 
 exports.reduxConnect = function reduxConnect(mapStateToProps, mapDispatchToProps, mergeProps, options){
