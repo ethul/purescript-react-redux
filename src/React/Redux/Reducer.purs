@@ -3,7 +3,7 @@ module React.Redux.Reducer where
 import Prelude
 
 import Data.Monoid (class Monoid, mempty)
-import Data.Newtype (class Newtype, unwrap)
+import Data.Newtype (class Newtype, wrap, unwrap)
 
 newtype Reducer action state state' = Reducer (action -> state -> state')
 
@@ -34,3 +34,6 @@ instance semigroupReducer :: Semigroup state' => Semigroup (Reducer action state
 
 instance monoidReducer :: Monoid state' => Monoid (Reducer action state state') where
   mempty = Reducer (const (const (mempty)))
+
+reducerFlipped :: forall action state state'. (state -> action -> state') -> Reducer action state state'
+reducerFlipped = wrap <<< flip

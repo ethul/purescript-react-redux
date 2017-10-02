@@ -26,6 +26,7 @@ import Unsafe.Coerce (unsafeCoerce)
 import React as React
 import React.Redux.Internal as Internal
 import React.Redux.Middleware (Middleware, MiddlewareAPI) as Redux
+import React.Redux.Reducer (reducerFlipped) as Redux
 import React.Redux.Types
   ( REDUX
   , ReduxEffect
@@ -44,11 +45,13 @@ import React.Redux.Types
   , ReduxStore
   ) as Redux
 
--- | Connected class representation parameterized by state, ownProps, props, and action.
+-- | Connected class representation parameterized by `state`, `ownProps`, `props`, and `action`.
 foreign import data ConnectClass :: Type -> Type -> Type -> Type -> Type
 
+-- | Connect class type alias for a class with no `ownProps`.
 type ConnectClass' state props action = ConnectClass state { } props action
 
+-- | Options that can be passed on calling `connect`. Additional options may also be provided as needed.
 type ConnectOptions state stateProps ownProps props options
   = ( pure :: Boolean
     , areStatesEqual :: Fn2 (Record state) (Record state) Boolean
@@ -59,6 +62,10 @@ type ConnectOptions state stateProps ownProps props options
     | options
     )
 
+-- | Redux connect function that depends on `ownProps`.
+-- |
+-- | Redux will invoke the mapping functions whenever the connected
+-- | class receives updated `ownProps`.
 connect
   :: forall eff state action stateProps dispatchProps ownProps stateDispatchProps props options options'
    . Subrow stateDispatchProps props
@@ -77,6 +84,7 @@ connect stateToProps dispatchToProps options =
     (mkFn3 mergeProps)
     options
 
+-- | Redux connect function that does not depend on `ownProps`.
 connect_
   :: forall eff state action stateProps dispatchProps props options options'
    . Union stateProps dispatchProps props
@@ -165,15 +173,10 @@ foreign import reduxCreateStore
             (Redux.ReduxStoreEnhancer eff state action)
             (Redux.ReduxStore eff state action)
 
--- | Foreign Redux Provider component class.
 foreign import reduxProviderClass
   :: forall eff state action
    . React.ReactClass { store :: Redux.ReduxStore eff state action }
 
--- | Foreign Redux connect function that depends on `ownProps`.
--- |
--- | Redux will invoke the mapping functions whenever the connected
--- | class receives updated `ownProps`.
 foreign import reduxConnect
   :: forall eff state action stateProps dispatchProps ownProps props options
    . Fn4 (Fn2 (Record state) (Record ownProps) (Record stateProps))
@@ -182,7 +185,6 @@ foreign import reduxConnect
          (Record options)
          (React.ReactClass (Record props) -> ConnectClass (Record state) (Record ownProps) (Record props) action)
 
--- | Foreign Redux connect function that does not depend on `ownProps`.
 foreign import reduxConnect_
   :: forall eff state action stateProps dispatchProps props options
    . Fn4 (Record state -> Record stateProps)
