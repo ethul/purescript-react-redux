@@ -16,7 +16,13 @@
     "!src/**/*"
   ],
   "dependencies": {
-    "purescript-profunctor-lenses": "^3.2.0",
-    "purescript-react": "^3.0.0"
+    "purescript-react": "^3.0.0",
+    "purescript-record": "athanclark/purescript-record#850360dbfa1bf765a19b3ec207a706622fa47ac7",
+    "purescript-monoid": "^3.1.0",
+    "purescript-strings": "^3.3.1",
+    "purescript-nullable": "^3.0.0"
+  },
+  "resolutions": {
+    "purescript-record": "850360dbfa1bf765a19b3ec207a706622fa47ac7"
   }
 }
