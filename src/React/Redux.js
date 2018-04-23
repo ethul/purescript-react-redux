@@ -19,3 +19,10 @@ exports.reduxConnect = function reduxConnect(mapStateToProps, mapDispatchToProps
 exports.reduxConnect_ = exports.reduxConnect;
 
 exports.reduxProviderClass = ReactRedux.Provider;
+
+exports.unsafeMerge = function unsafeMerge(l) {
+  return function (r) {
+    var o = {};
+    return Object.assign(o, l, r);
+  };
+};

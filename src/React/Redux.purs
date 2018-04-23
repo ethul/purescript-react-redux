@@ -19,7 +19,6 @@ import Control.Monad.Eff (Eff, kind Effect)
 import Control.Monad.Eff.Uncurried (EffFn3, runEffFn3)
 
 import Data.Function.Uncurried (Fn2, Fn3, Fn4, mkFn2, mkFn3, runFn4)
-import Data.Record.Class (class Subrow, unionMerge)
 
 import Unsafe.Coerce (unsafeCoerce)
 
@@ -67,11 +66,10 @@ type ConnectOptions state stateProps ownProps props options
 -- | Redux will invoke the mapping functions whenever the connected
 -- | class receives updated `ownProps`.
 connect
-  :: forall eff state action stateProps dispatchProps ownProps stateDispatchProps props options options'
-   . Subrow stateDispatchProps props
-  => Union stateProps dispatchProps stateDispatchProps
+  :: forall eff state action stateProps dispatchProps ownProps stateDispatchProps props options options' options''
+   . Union stateProps dispatchProps stateDispatchProps
   => Union stateDispatchProps ownProps props
-  => Subrow options (ConnectOptions state stateProps ownProps props options')
+  => Union options options'' (ConnectOptions state stateProps ownProps props options')
   => (Record state -> Record ownProps -> Record stateProps)
   -> (Redux.BaseDispatch eff action -> Record ownProps -> Record dispatchProps)
   -> Record options
@@ -86,10 +84,10 @@ connect stateToProps dispatchToProps options =
 
 -- | Redux connect function that does not depend on `ownProps`.
 connect_
-  :: forall eff state action stateProps dispatchProps props options options'
+  :: forall eff state action stateProps dispatchProps props options options' options''
    . Union stateProps dispatchProps props
   => Union props () props
-  => Subrow options (ConnectOptions state stateProps () props options')
+  => Union options options'' (ConnectOptions state stateProps () props options')
   => (Record state -> Record stateProps)
   -> (Redux.BaseDispatch eff action -> Record dispatchProps)
   -> Record options
@@ -104,8 +102,7 @@ connect_ stateToProps dispatchToProps options =
 
 mergeProps
   :: forall stateProps dispatchProps ownProps stateDispatchProps props
-   . Subrow stateDispatchProps props
-  => Union stateProps dispatchProps stateDispatchProps
+   . Union stateProps dispatchProps stateDispatchProps
   => Union stateDispatchProps ownProps props
   => Record stateProps
   -> Record dispatchProps
@@ -192,3 +189,15 @@ foreign import reduxConnect_
          (Fn3 (Record stateProps) (Record dispatchProps) { } (Record props))
          (Record options)
          (React.ReactClass (Record props) -> ConnectClass' (Record state) (Record props) action)
+
+-- | Temporarily including `unionMerge` to publish to Pursuit.
+-- | See purescript/purescript-record#7
+-- |
+unionMerge :: forall l r u. Union r l u => Record l -> Record r -> Record u
+unionMerge = unsafeMerge
+
+foreign import unsafeMerge
+  :: forall l r u
+  .  Record l
+  -> Record r
+  -> Record u
