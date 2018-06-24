@@ -2,7 +2,7 @@ module React.Redux.Internal where
 
 import Prelude
 
-import Control.Monad.Eff.Uncurried (mkEffFn1, runEffFn1)
+import Effect.Uncurried (mkEffectFn1, runEffectFn1)
 
 import Data.Function.Uncurried (mkFn2, runFn2)
 import Data.Maybe (Maybe, fromMaybe, maybe)
@@ -49,32 +49,32 @@ reduxReducerToReducer reduxReducer = wrap (flip (runFn2 reduxReducer) <<< action
 reducerToReduxReducer :: forall state action. Reducer action state -> ReduxReducer state action
 reducerToReduxReducer reducer = mkFn2 \state -> maybe state (flip (unwrap reducer) state) <<< toMaybe <<< reduxActionToAction
 
-reduxBaseDispatchToBaseDispatch :: forall eff action. ReduxBaseDispatch eff action -> BaseDispatch eff action
-reduxBaseDispatchToBaseDispatch = (>>>) actionToReduxAction <<< (<<<) (map reduxActionToAction) <<< runEffFn1
+reduxBaseDispatchToBaseDispatch :: forall action. ReduxBaseDispatch action -> BaseDispatch action
+reduxBaseDispatchToBaseDispatch = (>>>) actionToReduxAction <<< (<<<) (map reduxActionToAction) <<< runEffectFn1
 
-reduxDispatchToDispatch :: forall eff action result. ReduxDispatch eff action result -> Dispatch eff action result
-reduxDispatchToDispatch = (>>>) actionToReduxAction <<< runEffFn1
+reduxDispatchToDispatch :: forall action result. ReduxDispatch action result -> Dispatch action result
+reduxDispatchToDispatch = (>>>) actionToReduxAction <<< runEffectFn1
 
-baseDispatchToReduxBaseDispatch :: forall eff action. Dispatch eff action action -> ReduxBaseDispatch eff action
-baseDispatchToReduxBaseDispatch = mkEffFn1 <<< (>>>) reduxActionToAction <<< (<<<) (map actionToReduxAction)
+baseDispatchToReduxBaseDispatch :: forall action. Dispatch action action -> ReduxBaseDispatch action
+baseDispatchToReduxBaseDispatch = mkEffectFn1 <<< (>>>) reduxActionToAction <<< (<<<) (map actionToReduxAction)
 
-dispatchToReduxDispatch :: forall eff action result. Dispatch eff action result -> ReduxDispatch eff action result
-dispatchToReduxDispatch = mkEffFn1 <<< (>>>) reduxActionToAction
+dispatchToReduxDispatch :: forall action result. Dispatch action result -> ReduxDispatch action result
+dispatchToReduxDispatch = mkEffectFn1 <<< (>>>) reduxActionToAction
 
-reduxMiddlewareApiToMiddlewareApi :: forall eff state action. ReduxMiddlewareAPI eff state action -> MiddlewareAPI eff state action
+reduxMiddlewareApiToMiddlewareApi :: forall state action. ReduxMiddlewareAPI state action -> MiddlewareAPI state action
 reduxMiddlewareApiToMiddlewareApi { getState, dispatch } = { getState, dispatch: reduxBaseDispatchToBaseDispatch dispatch }
 
-middlewareApiToReduxMiddlewareApi :: forall eff state action. MiddlewareAPI eff state action -> ReduxMiddlewareAPI eff state action
+middlewareApiToReduxMiddlewareApi :: forall state action. MiddlewareAPI state action -> ReduxMiddlewareAPI state action
 middlewareApiToReduxMiddlewareApi { getState, dispatch } = { getState, dispatch: baseDispatchToReduxBaseDispatch dispatch }
 
-reduxMiddlewareToMiddleware :: forall eff state action a b. ReduxMiddleware eff state action a b -> Middleware eff state action a b
+reduxMiddlewareToMiddleware :: forall state action a b. ReduxMiddleware state action a b -> Middleware state action a b
 reduxMiddlewareToMiddleware reduxMiddleware = wrap $ \middlewareApi dispatch -> reduxDispatchToDispatch (reduxMiddleware (middlewareApiToReduxMiddlewareApi middlewareApi) (dispatchToReduxDispatch dispatch))
 
-middlewareToReduxMiddleware :: forall eff state action a b. Middleware eff state action a b -> ReduxMiddleware eff state action a b
+middlewareToReduxMiddleware :: forall state action a b. Middleware state action a b -> ReduxMiddleware state action a b
 middlewareToReduxMiddleware middleware reduxMiddlewareApi = reduxMiddleware
   where
-  middleware' :: Dispatch eff action a -> Dispatch eff action b
+  middleware' :: Dispatch action a -> Dispatch action b
   middleware' = unwrap middleware (reduxMiddlewareApiToMiddlewareApi reduxMiddlewareApi)
 
-  reduxMiddleware :: ReduxDispatch eff action a -> ReduxDispatch eff action b
+  reduxMiddleware :: ReduxDispatch action a -> ReduxDispatch action b
   reduxMiddleware = dispatchToReduxDispatch <<< middleware' <<< reduxDispatchToDispatch

@@ -2,7 +2,6 @@ module React.Redux.Reducer where
 
 import Prelude
 
-import Data.Monoid (class Monoid, mempty)
 import Data.Newtype (class Newtype, wrap, unwrap)
 
 newtype Reducer action state state' = Reducer (action -> state -> state')
@@ -13,7 +12,7 @@ instance semigroupoidReducer :: Semigroupoid (Reducer action) where
   compose (Reducer f) (Reducer g) = Reducer (\action -> f action <<< g action)
 
 instance categoryReducer :: Category (Reducer action) where
-  id = Reducer (const id)
+  identity = Reducer (const identity)
 
 instance functorReducer :: Functor (Reducer action state) where
   map f (Reducer g) = Reducer ((<<<) f <<< g)
